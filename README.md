@@ -187,9 +187,21 @@ The action runs the files in `src/` directly on the runner's Node 20 — there i
 Actions used in CI and in the examples are hash-pinned; the only exceptions are the self-references
 to this action's own `v1` tag, allowed explicitly in [`zizmor.yml`](zizmor.yml).
 
-Publishing: tag a release and move the major tag.
+## Releasing
+
+Consumers pin `@v1`, so that tag has to follow every release:
 
 ```bash
 git tag -a v1.0.0 -m 'v1.0.0' && git push origin v1.0.0
-git tag -f v1 v1.0.0 && git push -f origin v1
+gh release create v1.0.0 --generate-notes
 ```
+
+Publishing the release triggers [`release.yml`](.github/workflows/release.yml), which re-runs the
+tests against the tagged commit and then moves `v1` to it. Nothing else is needed for
+`uses: metalbear-co/jev-auto-approve@v1` to resolve — a GitHub Action is served from its git ref,
+not from a registry.
+
+Listing it on the **GitHub Marketplace** is optional and cannot be automated: it is a checkbox on
+the release page ("Publish this Action to the Marketplace"), which requires accepting the developer
+agreement once and a Marketplace-unique `name` in `action.yml`. The root `action.yml` and its
+`branding` block are already in the shape Marketplace requires.

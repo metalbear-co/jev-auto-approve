@@ -1,0 +1,54 @@
+# Consumers pin `@v1`, so that tag has to follow every release. Publishing a release triggers this,
+# which re-runs the tests and then moves the major tag to the released commit.
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  major-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+          # Nothing to install, so the cache would only be an attack surface on a release job.
+          package-manager-cache: false
+      # The major tag is what everyone runs, so it never moves to a commit that fails the suite.
+      - run: npm test
+
+      - name: Point the major tag at this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::Release tag '$TAG' is not vMAJOR.MINOR.PATCH; not moving a major tag." >&2; exit 1 ;;
+          esac
+          major="${TAG%%.*}"
+
+          # Annotated tags point at a tag object, which a ref cannot be set to; dereference first.
+          sha="$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.sha')"
+          if [ "$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.type')" = 'tag' ]; then
+            sha="$(gh api "repos/$REPO/git/tags/$sha" --jq '.object.sha')"
+          fi
+
+          if gh api "repos/$REPO/git/ref/tags/$major" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$REPO/git/refs/tags/$major" -f "sha=$sha" -F force=true >/dev/null
+          else
+            gh api -X POST "repos/$REPO/git/refs" -f "ref=refs/tags/$major" -f "sha=$sha" >/dev/null
+          fi
+          echo "$major -> $sha ($TAG)" >> "$GITHUB_STEP_SUMMARY"

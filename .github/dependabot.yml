@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # The workflows and examples hash-pin their actions, which only stays current if something bumps
+  # them. There are no runtime dependencies to watch.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Let a fresh release sit before it is proposed here.
+    cooldown:
+      default-days: 7
