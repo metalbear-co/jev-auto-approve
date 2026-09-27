@@ -82,7 +82,7 @@ jobs:
       # Pinning the reusable workflow by commit does not freeze this reference, so a caller who
       # needs the rubric held still should use the action directly and pin that.
       - id: jev
-        uses: metalbear-co/jev-auto-approve@v1
+        uses: metalbear-co/jev-auto-approve@v2
         with:
           jev-api-key: ${{ secrets.jev-api-key }}
           approve-token: ${{ secrets.approve-token }}
